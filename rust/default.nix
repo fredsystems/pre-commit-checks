@@ -78,15 +78,17 @@ let
     };
   };
 
-in
-git-hooks.lib.${system}.run {
-  inherit src excludes hooks;
+  # 👈 Run the real git-hooks derivation
+  run = git-hooks.lib.${system}.run {
+    inherit src excludes hooks;
+  };
 
-  # Expose extra packages + LD_LIBRARY_PATH to devShell caller
+in
+# 👈 Extend the result SAFELY using //
+run
+// {
   passthru = {
     inherit rustToolchain libPath;
-
-    # The repo's devShell can pull these in:
     devPackages = [ rustToolchain ] ++ extraPackages;
   };
 }
