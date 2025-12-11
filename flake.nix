@@ -14,22 +14,21 @@
 
   outputs =
     {
+      self,
       nixpkgs,
       git-hooks,
       flake-utils,
       ...
     }:
     let
-      # All “normal” systems flake-utils cares about.
       systems = flake-utils.lib.defaultSystems;
       forAllSystems = nixpkgs.lib.genAttrs systems;
     in
     {
-      ##########################################################################
-      ## Library: reusable pre-commit generator                               ##
-      ## - Consumers call: precommit-base.lib.mkPrecommitCheck { ... }        ##
-      ## - Supports per-repo extraExcludes that extend base excludes          ##
-      ##########################################################################
+
+      ############################################################################
+      ## Library: reusable pre-commit generator                                 ##
+      ############################################################################
       lib.mkPrecommitCheck =
         {
           system,
@@ -40,13 +39,11 @@
         let
           pkgs = import nixpkgs { inherit system; };
 
-          # Base excludes for THIS flake only.
           baseExcludes = [
             "^.*\\.png$"
             "^.*\\.jpg$"
           ];
 
-          # Consumers extend these via extraExcludes.
           excludes = baseExcludes ++ extraExcludes;
 
         in
@@ -54,9 +51,9 @@
           inherit src excludes;
 
           hooks = {
-            ####################################################################
-            ## Simple / builtin hooks                                         ##
-            ####################################################################
+            ############################################################
+            ## Basic fixers                                           ##
+            ############################################################
             check-yaml.enable = true;
             end-of-file-fixer.enable = true;
 
@@ -74,9 +71,9 @@
             check-executables-have-shebangs.enable = true;
             check-shebang-scripts-are-executable.enable = true;
 
-            ####################################################################
-            ## Formatters & linters                                           ##
-            ####################################################################
+            ############################################################
+            ## Linters / Formatters                                   ##
+            ############################################################
             black.enable = true;
             flake8.enable = true;
             nixfmt.enable = true;
@@ -105,9 +102,9 @@
               files = "\\.([ch]|cpp|rs|py|sh|txt|md|toml|yaml|yml)$";
             };
 
-            ####################################################################
-            ## GitHub Actions / Workflow validation                           ##
-            ####################################################################
+            ############################################################
+            ## GitHub Actions schema validation                       ##
+            ############################################################
             check-github-actions = {
               enable = true;
               entry = "${pkgs.check-jsonschema}/bin/check-jsonschema";
@@ -132,27 +129,51 @@
           };
         };
 
-      ##########################################################################
-      ## DevShells for THIS flake (not consumers)                             ##
-      ## - direnv / `nix develop` look for devShells.${system}.default        ##
-      ##########################################################################
+      ############################################################################
+      ## Checks for *this* flake (consuming its own mkPrecommitCheck)
+      ## This allows devShell to inherit shellHook and enabledPackages.
+      ############################################################################
+      checks = forAllSystems (system: {
+        pre-commit-check = self.lib.mkPrecommitCheck {
+          inherit system;
+          src = ./.;
+          extraExcludes = [ ];
+        };
+      });
+
+      ############################################################################
+      ## DevShells: generate .pre-commit-config.yaml on nix develop
+      ############################################################################
       devShells = forAllSystems (
         system:
         let
           pkgs = import nixpkgs { inherit system; };
+
+          # This is now guaranteed to exist because we defined checks above
+          inherit (self.checks.${system}.pre-commit-check)
+            shellHook
+            enabledPackages
+            ;
         in
         {
-          # This is devShells.${system}.default
           default = pkgs.mkShell {
-            packages = [
-              pkgs.pre-commit
-              pkgs.deadnix
-              pkgs.statix
-              pkgs.nixfmt
-              pkgs.check-jsonschema
-              pkgs.codespell
-              pkgs.nodePackages.markdownlint-cli2
-            ];
+            buildInputs =
+              enabledPackages
+              ++ (with pkgs; [
+                pre-commit
+                check-jsonschema
+                codespell
+                typos
+                nixfmt
+                nodePackages.markdownlint-cli2
+              ]);
+
+            shellHook = ''
+              # Automatically generate .pre-commit-config.yaml
+              ${shellHook}
+
+              alias pre-commit="pre-commit run --all-files"
+            '';
           };
         }
       );
