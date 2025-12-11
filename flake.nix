@@ -28,7 +28,7 @@
       forAllSystems = nixpkgs.lib.genAttrs systems;
     in
     {
-
+      supportedSystems = systems;
       ##########################################################################
       ## Library exports
       ##########################################################################
@@ -55,6 +55,8 @@
       ## Checks for this flake
       ##########################################################################
       checks = forAllSystems (system: {
+        supportedSystems = systems;
+
         pre-commit-check = self.lib.mkPrecommitCheck {
           inherit system;
           src = ./.;
