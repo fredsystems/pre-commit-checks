@@ -1,5 +1,5 @@
 {
-  description = "Fred's shared base pre-commit flake";
+  description = "Fred's shared base + rust pre-commit flake";
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
@@ -28,42 +28,35 @@
       forAllSystems = nixpkgs.lib.genAttrs systems;
     in
     {
-      supportedSystems = systems;
-      ##########################################################################
-      ## Library exports
-      ##########################################################################
-      lib.mkPrecommitCheck =
-        {
-          system,
-          src,
-          extraExcludes ? [ ],
-        }:
-        let
-          pkgs = import nixpkgs { inherit system; };
-        in
-        import ./base/default.nix {
-          inherit
-            system
-            src
-            git-hooks
-            extraExcludes
-            pkgs
-            ;
-        };
 
       ##########################################################################
-      ## Checks for this flake
+      ## Library exports (this is what consumer repos import)
       ##########################################################################
-      checks = forAllSystems (system: {
+
+      lib = {
+
         supportedSystems = systems;
 
-        pre-commit-check = self.lib.mkPrecommitCheck {
-          inherit system;
-          src = ./.;
-          extraExcludes = [ ];
-        };
+        mkPrecommitCheck =
+          {
+            system,
+            src,
+            extraExcludes ? [ ],
+          }:
+          let
+            pkgs = import nixpkgs { inherit system; };
+          in
+          import ./base/default.nix {
+            inherit
+              system
+              src
+              pkgs
+              git-hooks
+              extraExcludes
+              ;
+          };
 
-        lib.mkRustPrecommitCheck =
+        mkRustPrecommitCheck =
           {
             system,
             src,
@@ -72,13 +65,10 @@
             extraPackages ? [ ],
             enableXtask ? false,
           }:
-
           let
             pkgs = import nixpkgs {
               inherit system;
-              overlays = [
-                (import rust-overlay)
-              ];
+              overlays = [ (import rust-overlay) ];
             };
           in
           import ./rust/default.nix {
@@ -86,18 +76,31 @@
               system
               src
               pkgs
+              git-hooks
               extraExcludes
               extraLibPathPkgs
               extraPackages
               enableXtask
-              git-hooks
               ;
           };
+      };
+
+      ##########################################################################
+      ## Checks for *this repo only*
+      ## (Only run base precommit, no rust)
+      ##########################################################################
+
+      checks = forAllSystems (system: {
+        pre-commit-check = self.lib.mkPrecommitCheck {
+          inherit system;
+          src = ./.;
+        };
       });
 
       ##########################################################################
-      ## DevShells for this flake (auto-generate .pre-commit-config.yaml)
+      ## DevShells for this repo (auto-generates .pre-commit-config.yaml)
       ##########################################################################
+
       devShells = forAllSystems (
         system:
         let
