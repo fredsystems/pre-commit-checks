@@ -137,10 +137,12 @@
             system,
             check_rust ? false,
             extraExcludes ? [ ],
+            enableXtask ? false,
           }:
           let
             base = self.lib.mkBaseCheck { inherit system extraExcludes; };
-            rust = if check_rust then self.lib.mkRustCheck { inherit system extraExcludes; } else null;
+            rust =
+              if check_rust then self.lib.mkRustCheck { inherit system extraExcludes enableXtask; } else null;
 
             hooks = mergeHooks ([ base.hooks ] ++ (if rust != null then [ rust.hooks ] else [ ]));
 
