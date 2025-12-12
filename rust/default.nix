@@ -30,7 +30,7 @@ let
   excludes = defaultExcludes ++ extraExcludes;
 
   # Optional LD_LIBRARY_PATH construction
-  libPath = pkgs.lib.makeLibraryPath extraLibPathPkgs;
+  libPath = extraLibPathPkgs;
 
   rustToolchain = pkgs.rust-bin.fromRustupToolchain {
     channel = "stable";
