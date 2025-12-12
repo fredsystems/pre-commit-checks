@@ -63,7 +63,7 @@ in
 {
   inherit hooks excludes;
 
-  enabledPackages = [ rustToolchain ];
+  enabledPackages = [ ];
   passthru = {
     inherit rustToolchain;
     devPackages = [ rustToolchain ] ++ extraPackages;

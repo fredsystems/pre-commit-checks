@@ -98,15 +98,26 @@
               inherit system;
               overlays = [ (import rust-overlay) ];
             };
+
+            rust = import ./checks/rust.nix {
+              inherit
+                pkgs
+                extraExcludes
+                extraLibPathPkgs
+                extraPackages
+                enableXtask
+                ;
+            };
           in
-          import ./checks/rust.nix {
-            inherit
-              pkgs
-              extraExcludes
-              extraLibPathPkgs
-              extraPackages
-              enableXtask
-              ;
+          rust
+          // {
+            shellHook = rust.shellHook or "";
+            enabledPackages = rust.enabledPackages or [ ];
+            passthru =
+              rust.passthru or {
+                devPackages = [ ];
+                libPath = [ ];
+              };
           };
 
         ############################################################################
@@ -141,6 +152,7 @@
 
             run = git-hooks.lib.${system}.run {
               inherit hooks excludes;
+
               src = ./.;
             };
 
@@ -172,24 +184,33 @@
       devShells = forAllSystems (
         system:
         let
-          pkgs = import nixpkgs { inherit system; };
-          base = self.checks.${system}.pre-commit-check;
+          pkgs = import nixpkgs {
+            inherit system;
+          };
+
+          chk = self.checks.${system}.pre-commit-check;
+          devPkgs =
+            (chk.passthru.devPackages or [ ])
+            ++ chk.enabledPackages
+            ++ (with pkgs; [
+              pre-commit
+              check-jsonschema
+              codespell
+              typos
+              nixfmt
+              nodePackages.markdownlint-cli2
+            ]);
+
+          libPath = pkgs.lib.makeLibraryPath (chk.passthru.libPath or [ ]);
         in
         {
           default = pkgs.mkShell {
-            buildInputs =
-              base.enabledPackages
-              ++ (with pkgs; [
-                pre-commit
-                check-jsonschema
-                codespell
-                typos
-                nixfmt
-                nodePackages.markdownlint-cli2
-              ]);
+            buildInputs = devPkgs;
+
+            LD_LIBRARY_PATH = libPath;
 
             shellHook = ''
-              ${base.shellHook}
+              ${chk.shellHook}
               alias pre-commit="pre-commit run --all-files"
             '';
           };
