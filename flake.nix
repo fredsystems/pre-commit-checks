@@ -1,5 +1,5 @@
 {
-  description = "Fred's shared base + rust pre-commit flake";
+  description = "Fred's shared modular pre-commit framework";
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
@@ -10,7 +10,6 @@
     };
 
     flake-utils.url = "github:numtide/flake-utils";
-
     rust-overlay.url = "github:oxalica/rust-overlay";
   };
 
@@ -26,40 +25,69 @@
     let
       systems = flake-utils.lib.defaultSystems;
       forAllSystems = nixpkgs.lib.genAttrs systems;
+
+      ################################################################################
+      ## Helper: merge hook sets safely
+      ################################################################################
+      mergeHooks = hookSets: nixpkgs.lib.foldl' (acc: elem: acc // elem) { } hookSets;
+
+      mergeExcludes = excludeSets: nixpkgs.lib.concatLists excludeSets;
+
+      mergePassthru =
+        passthruSets:
+        let
+          empty = {
+            devPackages = [ ];
+            libPath = [ ];
+          };
+          mergeTwo = a: b: {
+            devPackages = a.devPackages or [ ] ++ b.devPackages or [ ];
+            libPath = a.libPath or [ ] ++ b.libPath or [ ];
+          };
+        in
+        nixpkgs.lib.foldl' mergeTwo empty passthruSets;
     in
     {
-
-      ##########################################################################
-      ## Library exports (this is what consumer repos import)
-      ##########################################################################
-
       lib = {
 
         supportedSystems = systems;
 
-        mkPrecommitCheck =
+        ############################################################################
+        ## BASE CHECKS
+        ############################################################################
+        mkBaseCheck =
           {
             system,
-            src,
             extraExcludes ? [ ],
           }:
           let
             pkgs = import nixpkgs { inherit system; };
+
+            # Load base checks file
+            base = import ./checks/base.nix {
+              inherit
+                pkgs
+                extraExcludes
+                ;
+            };
           in
-          import ./base/default.nix {
-            inherit
-              system
-              src
-              pkgs
-              git-hooks
-              extraExcludes
-              ;
+          base
+          // {
+            shellHook = base.shellHook or "";
+            enabledPackages = base.enabledPackages or [ ];
+            passthru =
+              base.passthru or {
+                devPackages = [ ];
+                libPath = [ ];
+              };
           };
 
-        mkRustPrecommitCheck =
+        ############################################################################
+        ## RUST CHECKS
+        ############################################################################
+        mkRustCheck =
           {
             system,
-            src,
             extraExcludes ? [ ],
             extraLibPathPkgs ? [ ],
             extraPackages ? [ ],
@@ -71,49 +99,86 @@
               overlays = [ (import rust-overlay) ];
             };
           in
-          import ./rust/default.nix {
+          import ./checks/rust.nix {
             inherit
-              system
-              src
               pkgs
-              git-hooks
               extraExcludes
               extraLibPathPkgs
               extraPackages
               enableXtask
               ;
           };
+
+        ############################################################################
+        ## MASTER MODULAR CHECK
+        ##
+        ## Consumer chooses what to enable:
+        ##
+        ##   lib.mkCheck {
+        ##     system = "x86_64-linux";
+        ##     src = ./.;
+        ##     check_rust = true;
+        ##     check_docker = false;
+        ##   }
+        ############################################################################
+        mkCheck =
+          {
+            system,
+            check_rust ? false,
+            extraExcludes ? [ ],
+          }:
+          let
+            base = self.lib.mkBaseCheck { inherit system extraExcludes; };
+            rust = if check_rust then self.lib.mkRustCheck { inherit system extraExcludes; } else null;
+
+            hooks = mergeHooks ([ base.hooks ] ++ (if rust != null then [ rust.hooks ] else [ ]));
+
+            excludes = mergeExcludes ([ base.excludes ] ++ (if rust != null then [ rust.excludes ] else [ ]));
+
+            passthru = mergePassthru (
+              [ base.passthru or { } ] ++ (if rust != null then [ rust.passthru or { } ] else [ ])
+            );
+
+            run = git-hooks.lib.${system}.run {
+              inherit hooks excludes;
+              src = ./.;
+            };
+
+          in
+          run
+          // {
+            passthru = passthru // {
+              inherit hooks excludes;
+            };
+
+            shellHook = run.shellHook or "";
+            enabledPackages = run.enabledPackages or [ ];
+          };
       };
 
-      ##########################################################################
-      ## Checks for *this repo only*
-      ## (Only run base precommit, no rust)
-      ##########################################################################
-
-      checks = forAllSystems (system: {
-        pre-commit-check = self.lib.mkPrecommitCheck {
+      ##############################################################################
+      ## CHECKS FOR THIS REPO ITSELF (base only)
+      ##############################################################################
+      checks = nixpkgs.lib.genAttrs systems (system: {
+        pre-commit-check = self.lib.mkCheck {
           inherit system;
-          src = ./.;
+          check_rust = false;
         };
       });
 
-      ##########################################################################
-      ## DevShells for this repo (auto-generates .pre-commit-config.yaml)
-      ##########################################################################
-
+      #############################################################################
+      ## DEV SHELLS — use only base checks for this repo
+      #############################################################################
       devShells = forAllSystems (
         system:
         let
           pkgs = import nixpkgs { inherit system; };
-          inherit (self.checks.${system}.pre-commit-check)
-            shellHook
-            enabledPackages
-            ;
+          base = self.checks.${system}.pre-commit-check;
         in
         {
           default = pkgs.mkShell {
             buildInputs =
-              enabledPackages
+              base.enabledPackages
               ++ (with pkgs; [
                 pre-commit
                 check-jsonschema
@@ -124,7 +189,7 @@
               ]);
 
             shellHook = ''
-              ${shellHook}
+              ${base.shellHook}
               alias pre-commit="pre-commit run --all-files"
             '';
           };

@@ -1,10 +1,5 @@
-# rust/default.nix
 {
-  system,
-  src,
   pkgs,
-  git-hooks,
-
   extraExcludes ? [ ],
   extraLibPathPkgs ? [ ],
   extraPackages ? [ ],
@@ -16,12 +11,9 @@ let
     "^target/"
     "^Cargo.lock$"
     "\\.profraw$"
-    "^dist/"
   ];
 
   excludes = defaultExcludes ++ extraExcludes;
-
-  libPath = extraLibPathPkgs;
 
   rustToolchain = pkgs.rust-bin.fromRustupToolchain {
     channel = "stable";
@@ -67,21 +59,14 @@ let
       pass_filenames = false;
     };
   };
-
-  # Main git-hooks derivation
-  run = git-hooks.lib.${system}.run {
-    inherit src excludes hooks;
-  };
-
 in
 {
-  inherit (run)
-    shellHook
-    enabledPackages
-    ;
+  inherit hooks excludes;
 
+  enabledPackages = [ rustToolchain ];
   passthru = {
-    inherit rustToolchain libPath;
+    inherit rustToolchain;
     devPackages = [ rustToolchain ] ++ extraPackages;
+    libPath = extraLibPathPkgs;
   };
 }

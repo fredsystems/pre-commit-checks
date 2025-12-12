@@ -1,9 +1,5 @@
-# base/default.nix
 {
-  system,
-  src,
   pkgs,
-  git-hooks,
   extraExcludes ? [ ],
 }:
 
@@ -15,14 +11,7 @@ let
 
   excludes = baseExcludes ++ extraExcludes;
 
-in
-git-hooks.lib.${system}.run {
-  inherit src excludes;
-
   hooks = {
-    ############################################################
-    ## Basic fixers                                           ##
-    ############################################################
     check-yaml.enable = true;
     end-of-file-fixer.enable = true;
 
@@ -40,9 +29,6 @@ git-hooks.lib.${system}.run {
     check-executables-have-shebangs.enable = true;
     check-shebang-scripts-are-executable.enable = true;
 
-    ############################################################
-    ## Linters / Formatters                                   ##
-    ############################################################
     black.enable = true;
     flake8.enable = true;
     nixfmt.enable = true;
@@ -68,12 +54,9 @@ git-hooks.lib.${system}.run {
       enable = true;
       entry = "${pkgs.codespell}/bin/codespell";
       args = [ "--ignore-words=.dictionary.txt" ];
-      files = "\\.([ch]|cpp|rs|py|sh|txt|md|toml|yaml|yml)$";
+      files = "\\.(c|cpp|rs|py|sh|txt|md|toml|yaml|yml)$";
     };
 
-    ############################################################
-    ## GitHub Actions schema validation                       ##
-    ############################################################
     check-github-actions = {
       enable = true;
       entry = "${pkgs.check-jsonschema}/bin/check-jsonschema";
@@ -95,5 +78,15 @@ git-hooks.lib.${system}.run {
       files = "^\\.github/workflows/.*\\.ya?ml$";
       pass_filenames = true;
     };
+  };
+in
+
+{
+  inherit hooks excludes;
+
+  enabledPackages = [ ];
+  passthru = {
+    devPackages = [ ];
+    libPath = [ ];
   };
 }
