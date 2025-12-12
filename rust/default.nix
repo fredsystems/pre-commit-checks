@@ -5,21 +5,13 @@
   pkgs,
   git-hooks,
 
-  # Optional: extra excludes appended to default Rust ignores
   extraExcludes ? [ ],
-
-  # Optional: extra runtime library deps (only needed for GUI, eframe, wgpu)
   extraLibPathPkgs ? [ ],
-
-  # Optional: extra dev packages (cargo-deny, cargo-llvm-cov, etc.)
   extraPackages ? [ ],
-
-  # Optional: enable xtask (off by default)
   enableXtask ? false,
 }:
 
 let
-  # Default Rust excludes — generic + extendable
   defaultExcludes = [
     "^target/"
     "^Cargo.lock$"
@@ -29,7 +21,6 @@ let
 
   excludes = defaultExcludes ++ extraExcludes;
 
-  # Optional LD_LIBRARY_PATH construction
   libPath = extraLibPathPkgs;
 
   rustToolchain = pkgs.rust-bin.fromRustupToolchain {
@@ -66,7 +57,6 @@ let
       pass_filenames = false;
     };
 
-    # Optional xtask hook
     xtask-check = pkgs.lib.optionalAttrs enableXtask {
       enable = true;
       entry = "${rustToolchain}/bin/cargo";
@@ -78,15 +68,18 @@ let
     };
   };
 
-  # 👈 Run the real git-hooks derivation
+  # Main git-hooks derivation
   run = git-hooks.lib.${system}.run {
     inherit src excludes hooks;
   };
 
 in
-# 👈 Extend the result SAFELY using //
-run
-// {
+{
+  inherit (run)
+    shellHook
+    enabledPackages
+    ;
+
   passthru = {
     inherit rustToolchain libPath;
     devPackages = [ rustToolchain ] ++ extraPackages;
