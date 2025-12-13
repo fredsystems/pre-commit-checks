@@ -97,7 +97,7 @@ Includes tools such as:
 
 ## 🏗️ Architecture Overview
 
-```
+```bash
 pre-commit-checks/
  ├── flake.nix
  └── README.md  ← you are here
