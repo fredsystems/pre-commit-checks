@@ -178,26 +178,16 @@
       ##############################################################################
       ## CHECKS FOR *THIS* REPO
       ##############################################################################
-      checks = nixpkgs.lib.genAttrs systems (
-        system:
-        let
-          pkgs = import nixpkgs { inherit system; };
-
-          base = import ./checks/base.nix {
-            inherit pkgs;
-          };
-
+      checks = nixpkgs.lib.genAttrs systems (system: {
+        pre-commit = self.lib.mkCheck {
+          inherit system;
           src = ./.;
 
-          run = git-hooks.lib.${system}.run {
-            inherit src;
-            inherit (base) hooks excludes;
-          };
-        in
-        {
-          pre-commit = run;
-        }
-      );
+          check_rust = false;
+          check_docker = false;
+          check_python = false;
+        };
+      });
 
       ##############################################################################
       ## DEV SHELL FOR THIS REPO
