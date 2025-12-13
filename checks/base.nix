@@ -9,6 +9,20 @@ let
     "^.*\\.jpg$"
   ];
 
+  markdownlintConfig = pkgs.writeTextFile {
+    name = "config.markdownlint.yaml";
+    text = ''
+      default: true
+      MD013:
+        line_length: 150
+        heading_line_length: 150
+        code_block_line_length: 150
+        tables: false
+        code_blocks: false
+      MD033: false
+    '';
+  };
+
   excludes = baseExcludes ++ extraExcludes;
 
   hooks = {
@@ -29,6 +43,11 @@ let
     check-executables-have-shebangs.enable = true;
     check-shebang-scripts-are-executable.enable = true;
     check-added-large-files.enable = true;
+    check-symlinks.enable = true;
+    detect-private-key = {
+      enable = true;
+      entry = "${pkgs.python3Packages.pre-commit-hooks}/bin/detect-private-key";
+    };
 
     check-case-conflict = {
       enable = true;
@@ -45,6 +64,20 @@ let
     nixfmt.enable = true;
     shellcheck.enable = true;
     prettier.enable = true;
+    check-toml.enable = true;
+    check-vcs-permalinks.enable = true;
+
+    markdownlint = {
+      enable = true;
+      entry = "${pkgs.nodePackages.markdownlint-cli2}/bin/markdownlint-cli2";
+      files = "\\.(md|mdx)$";
+
+      args = [
+        "--config"
+        "${markdownlintConfig}"
+        "--no-glob"
+      ];
+    };
 
     deadnix = {
       enable = true;
