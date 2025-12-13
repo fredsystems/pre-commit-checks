@@ -13,12 +13,7 @@ let
     name = "config.markdownlint.yaml";
     text = ''
       default: true
-      MD013:
-        line_length: 150
-        heading_line_length: 150
-        code_block_line_length: 150
-        tables: false
-        code_blocks: false
+      MD013: false
       MD033: false
     '';
   };

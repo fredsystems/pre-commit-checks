@@ -1,7 +1,6 @@
 # Pre-Commit Checks Flake
 
-This repository provides a **unified, reusable Nix flake** that defines a
-standardized set of pre-commit checks for use across multiple repositories.
+This repository provides a **unified, reusable Nix flake** that defines a standardized set of pre-commit checks for use across multiple repositories.
 
 It is designed to:
 
