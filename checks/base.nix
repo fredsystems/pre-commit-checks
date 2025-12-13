@@ -28,6 +28,19 @@ let
 
     check-executables-have-shebangs.enable = true;
     check-shebang-scripts-are-executable.enable = true;
+    check-added-large-files.enable = true;
+
+    check-case-conflict = {
+      enable = true;
+      entry = "${pkgs.python3Packages.pre-commit-hooks}/bin/check-case-conflict";
+    };
+
+    check-merge-conflict = {
+      enable = true;
+      entry = "${pkgs.python3Packages.pre-commit-hooks}/bin/check-merge-conflict";
+    };
+
+    no-commit-to-branch.enable = true;
 
     nixfmt.enable = true;
     shellcheck.enable = true;
