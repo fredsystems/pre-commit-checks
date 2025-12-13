@@ -29,10 +29,7 @@ let
     check-executables-have-shebangs.enable = true;
     check-shebang-scripts-are-executable.enable = true;
 
-    black.enable = true;
-    flake8.enable = true;
     nixfmt.enable = true;
-    hadolint.enable = true;
     shellcheck.enable = true;
     prettier.enable = true;
 

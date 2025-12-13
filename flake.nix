@@ -24,37 +24,42 @@
     }:
     let
       systems = flake-utils.lib.defaultSystems;
-      forAllSystems = nixpkgs.lib.genAttrs systems;
 
-      ################################################################################
-      ## Helper: merge hook sets safely
-      ################################################################################
-      mergeHooks = hookSets: nixpkgs.lib.foldl' (acc: elem: acc // elem) { } hookSets;
+      inherit (nixpkgs) lib;
 
-      mergeExcludes = excludeSets: nixpkgs.lib.concatLists excludeSets;
+      # ──────────────────────────────────────────────────────────────
+      # Normalize + merge helpers
+      # ──────────────────────────────────────────────────────────────
+      normalize = m: {
+        hooks = m.hooks or { };
+        excludes = m.excludes or [ ];
+        passthru = {
+          devPackages = m.passthru.devPackages or [ ];
+          libPath = m.passthru.libPath or [ ];
+        };
+      };
 
-      mergePassthru =
-        passthruSets:
+      mergeModules =
+        modules:
         let
-          empty = {
-            devPackages = [ ];
-            libPath = [ ];
-          };
-          mergeTwo = a: b: {
-            devPackages = a.devPackages or [ ] ++ b.devPackages or [ ];
-            libPath = a.libPath or [ ] ++ b.libPath or [ ];
-          };
+          ms = map normalize modules;
         in
-        nixpkgs.lib.foldl' mergeTwo empty passthruSets;
+        {
+          hooks = lib.foldl' (a: b: a // b.hooks) { } ms;
+          excludes = lib.concatLists (map (m: m.excludes) ms);
+          passthru = {
+            devPackages = lib.concatLists (map (m: m.passthru.devPackages) ms);
+            libPath = lib.concatLists (map (m: m.passthru.libPath) ms);
+          };
+        };
     in
     {
+      # ──────────────────────────────────────────────────────────────
+      # Public library
+      # ──────────────────────────────────────────────────────────────
       lib = {
-
         supportedSystems = systems;
 
-        ############################################################################
-        ## BASE CHECKS
-        ############################################################################
         mkBaseCheck =
           {
             system,
@@ -62,35 +67,13 @@
           }:
           let
             pkgs = import nixpkgs { inherit system; };
-
-            # Load base checks file
-            base = import ./checks/base.nix {
-              inherit
-                pkgs
-                extraExcludes
-                ;
-            };
           in
-          base
-          // {
-            shellHook = base.shellHook or "";
-            enabledPackages = base.enabledPackages or [ ];
-            passthru =
-              base.passthru or {
-                devPackages = [ ];
-                libPath = [ ];
-              };
-          };
+          import ./checks/base.nix { inherit pkgs extraExcludes; };
 
-        ############################################################################
-        ## RUST CHECKS
-        ############################################################################
         mkRustCheck =
           {
             system,
             extraExcludes ? [ ],
-            extraLibPathPkgs ? [ ],
-            extraPackages ? [ ],
             enableXtask ? false,
           }:
           let
@@ -98,118 +81,146 @@
               inherit system;
               overlays = [ (import rust-overlay) ];
             };
-
-            rust = import ./checks/rust.nix {
-              inherit
-                pkgs
-                extraExcludes
-                extraLibPathPkgs
-                extraPackages
-                enableXtask
-                ;
-            };
           in
-          rust
-          // {
-            shellHook = rust.shellHook or "";
-            enabledPackages = rust.enabledPackages or [ ];
-            passthru =
-              rust.passthru or {
-                devPackages = [ ];
-                libPath = [ ];
-              };
+          import ./checks/rust.nix {
+            inherit pkgs extraExcludes enableXtask;
           };
 
-        ############################################################################
-        ## MASTER MODULAR CHECK
-        ##
-        ## Consumer chooses what to enable:
-        ##
-        ##   lib.mkCheck {
-        ##     system = "x86_64-linux";
-        ##     src = ./.;
-        ##     check_rust = true;
-        ##     check_docker = false;
-        ##   }
-        ############################################################################
+        mkDockerCheck =
+          {
+            system,
+            extraExcludes ? [ ],
+          }:
+          let
+            pkgs = import nixpkgs { inherit system; };
+          in
+          import ./checks/docker.nix { inherit pkgs extraExcludes; };
+
+        mkPythonCheck =
+          {
+            system,
+            extraExcludes ? [ ],
+            enableBlack ? true,
+            enableFlake8 ? true,
+          }:
+          let
+            pkgs = import nixpkgs { inherit system; };
+          in
+          import ./checks/python.nix {
+            inherit
+              pkgs
+              extraExcludes
+              enableBlack
+              enableFlake8
+              ;
+          };
+
+        # ──────────────────────────────────────────────────────────────
+        # MASTER ENTRY POINT
+        # ──────────────────────────────────────────────────────────────
         mkCheck =
           {
             system,
-            check_rust ? false,
+            src,
             extraExcludes ? [ ],
+
+            check_rust ? false,
+            check_docker ? false,
+            check_python ? false,
+
             enableXtask ? false,
+
+            python ? {
+              enableBlack = true;
+              enableFlake8 = true;
+            },
           }:
           let
             base = self.lib.mkBaseCheck { inherit system extraExcludes; };
+
             rust =
               if check_rust then self.lib.mkRustCheck { inherit system extraExcludes enableXtask; } else null;
 
-            hooks = mergeHooks ([ base.hooks ] ++ (if rust != null then [ rust.hooks ] else [ ]));
+            docker = if check_docker then self.lib.mkDockerCheck { inherit system extraExcludes; } else null;
 
-            excludes = mergeExcludes ([ base.excludes ] ++ (if rust != null then [ rust.excludes ] else [ ]));
+            pythonCheck =
+              if check_python then
+                self.lib.mkPythonCheck {
+                  inherit system extraExcludes;
+                  inherit (python) enableBlack enableFlake8;
+                }
+              else
+                null;
 
-            passthru = mergePassthru (
-              [ base.passthru or { } ] ++ (if rust != null then [ rust.passthru or { } ] else [ ])
-            );
+            modules = [
+              base
+            ]
+            ++ lib.optionals (rust != null) [ rust ]
+            ++ lib.optionals (docker != null) [ docker ]
+            ++ lib.optionals (pythonCheck != null) [ pythonCheck ];
+
+            merged = mergeModules modules;
 
             run = git-hooks.lib.${system}.run {
-              inherit hooks excludes;
-
-              src = ./.;
+              inherit src;
+              inherit (merged) hooks;
+              inherit (merged) excludes;
             };
-
           in
           run
           // {
-            passthru = passthru // {
-              inherit hooks excludes;
-            };
-
+            inherit (merged) passthru;
             shellHook = run.shellHook or "";
             enabledPackages = run.enabledPackages or [ ];
           };
       };
 
       ##############################################################################
-      ## CHECKS FOR THIS REPO ITSELF (base only)
+      ## CHECKS FOR *THIS* REPO
       ##############################################################################
-      checks = nixpkgs.lib.genAttrs systems (system: {
-        pre-commit-check = self.lib.mkCheck {
-          inherit system;
-          check_rust = false;
-        };
-      });
-
-      #############################################################################
-      ## DEV SHELLS — use only base checks for this repo
-      #############################################################################
-      devShells = forAllSystems (
+      checks = nixpkgs.lib.genAttrs systems (
         system:
         let
-          pkgs = import nixpkgs {
-            inherit system;
+          pkgs = import nixpkgs { inherit system; };
+
+          base = import ./checks/base.nix {
+            inherit pkgs;
           };
 
-          chk = self.checks.${system}.pre-commit-check;
-          devPkgs =
-            (chk.passthru.devPackages or [ ])
-            ++ chk.enabledPackages
-            ++ (with pkgs; [
-              pre-commit
-              check-jsonschema
-              codespell
-              typos
-              nixfmt
-              nodePackages.markdownlint-cli2
-            ]);
+          src = ./.;
 
-          libPath = pkgs.lib.makeLibraryPath (chk.passthru.libPath or [ ]);
+          run = git-hooks.lib.${system}.run {
+            inherit src;
+            inherit (base) hooks excludes;
+          };
+        in
+        {
+          pre-commit = run;
+        }
+      );
+
+      ##############################################################################
+      ## DEV SHELL FOR THIS REPO
+      ##############################################################################
+      devShells = nixpkgs.lib.genAttrs systems (
+        system:
+        let
+          pkgs = import nixpkgs { inherit system; };
+
+          chk = self.checks.${system}.pre-commit;
         in
         {
           default = pkgs.mkShell {
-            buildInputs = devPkgs;
-
-            LD_LIBRARY_PATH = libPath;
+            buildInputs =
+              chk.enabledPackages
+              ++ (with pkgs; [
+                pre-commit
+                check-jsonschema
+                codespell
+                typos
+                nixfmt
+                nodePackages.markdownlint-cli2
+              ]);
 
             shellHook = ''
               ${chk.shellHook}
