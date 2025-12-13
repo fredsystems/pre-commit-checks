@@ -59,6 +59,17 @@ let
       entry = "${pkgs.python3Packages.pre-commit-hooks}/bin/check-merge-conflict";
     };
 
+    forbid-new-submodules = {
+      enable = true;
+      entry = "${pkgs.python3Packages.pre-commit-hooks}/bin/forbid-new-submodules";
+    };
+
+    check-json = {
+      enable = true;
+      entry = "${pkgs.python3Packages.pre-commit-hooks}/bin/check-json";
+      files = "\\.json$";
+    };
+
     no-commit-to-branch.enable = true;
 
     nixfmt.enable = true;
