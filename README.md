@@ -2,6 +2,8 @@
 
 This repository provides a **unified, reusable Nix flake** that defines a standardized set of pre-commit checks for use across multiple repositories.
 
+This is a work in progress.
+
 It is designed to:
 
 - Centralize linting logic
