@@ -28,6 +28,8 @@ let
         "--config"
         "${hadolintConfig}"
       ];
+
+      files = "(^|/)Dockerfile.*+$|\\.Dockerfile$";
     };
   };
 in
