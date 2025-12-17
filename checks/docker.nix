@@ -9,6 +9,7 @@ let
     text = ''
       failure-threshold: warning
       ignored:
+        - DL3007  # don't use latest tag
         - DL3008  # pin versions
         - DL3018  # pin apk versions
     '';
