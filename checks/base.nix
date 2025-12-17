@@ -68,30 +68,7 @@ let
     no-commit-to-branch.enable = true;
 
     nixfmt.enable = true;
-
-    shellcheck = {
-      enable = true;
-      entry = "${pkgs.shellcheck}/bin/shellcheck";
-
-      # Match:
-      #  - *.sh
-      #  - files with bash/sh shebangs
-      files = ''
-        (
-          \.sh$ |
-          ^.*$
-        )
-      '';
-
-      # Let shellcheck decide based on shebang
-      args = [
-        "--external-sources"
-      ];
-
-      # This is the important part: rely on shebangs
-      types = [ "shell" ];
-    };
-
+    shellcheck.enable = true;
     prettier.enable = true;
     check-toml.enable = true;
     check-vcs-permalinks.enable = true;
