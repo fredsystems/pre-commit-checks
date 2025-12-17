@@ -4,6 +4,65 @@
 }:
 
 let
+  shellcheckWrapper = pkgs.writeShellApplication {
+    name = "shellcheck-wrapper";
+    runtimeInputs = [
+      pkgs.shellcheck
+      pkgs.coreutils
+      pkgs.gnugrep
+    ];
+    text = ''
+      set -euo pipefail
+
+      bash_files=()
+      sh_files=()
+
+      for f in "$@"; do
+        [ -f "$f" ] || continue
+
+        # Read first 2 lines only (shebang + shellcheck directive)
+        header="$(head -n 2 "$f" 2>/dev/null || true)"
+
+        # 1️⃣ Explicit shellcheck directive wins
+        if echo "$header" | grep -Eq '^\s*#\s*shellcheck\s+shell=bash'; then
+          bash_files+=("$f")
+          continue
+        fi
+
+        if echo "$header" | grep -Eq '^\s*#\s*shellcheck\s+shell=sh'; then
+          sh_files+=("$f")
+          continue
+        fi
+
+        # 2️⃣ Shebang-based detection
+        if echo "$header" | grep -Eq '^#!.*\b(bash|env[[:space:]]+bash|with-contenv[[:space:]]+bash)\b'; then
+          bash_files+=("$f")
+          continue
+        fi
+
+        if echo "$header" | grep -Eq '^#!.*\b(sh|env[[:space:]]+sh|busybox[[:space:]]+sh|with-contenv[[:space:]]+sh)\b'; then
+          sh_files+=("$f")
+          continue
+        fi
+      done
+
+      # Run shellcheck per shell type
+      if [ "''${#bash_files[@]}" -gt 0 ]; then
+        shellcheck \
+          --shell=bash \
+          --external-sources \
+          "''${bash_files[@]}"
+      fi
+
+      if [ "''${#sh_files[@]}" -gt 0 ]; then
+        shellcheck \
+          --shell=sh \
+          --external-sources \
+          "''${sh_files[@]}"
+      fi
+    '';
+  };
+
   baseExcludes = [
     "^.*\\.png$"
     "^.*\\.jpg$"
@@ -68,7 +127,19 @@ let
     no-commit-to-branch.enable = true;
 
     nixfmt.enable = true;
-    shellcheck.enable = true;
+    shellcheck.enable = false;
+
+    shellcheck-bash = {
+      enable = true;
+
+      entry = "${shellcheckWrapper}/bin/shellcheck-wrapper";
+
+      # Let wrapper decide; we only need filenames
+      types = [ "file" ];
+      files = ".*";
+      pass_filenames = true;
+    };
+
     prettier.enable = true;
     check-toml.enable = true;
     check-vcs-permalinks.enable = true;
