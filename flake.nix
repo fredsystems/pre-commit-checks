@@ -115,6 +115,25 @@
               ;
           };
 
+        mkJavascriptCheck =
+          {
+            system,
+            extraExcludes ? [ ],
+            enableBiome ? true,
+            enableTsc ? false,
+          }:
+          let
+            pkgs = import nixpkgs { inherit system; };
+          in
+          import ./checks/javascript.nix {
+            inherit
+              pkgs
+              extraExcludes
+              enableBiome
+              enableTsc
+              ;
+          };
+
         # ──────────────────────────────────────────────────────────────
         # MASTER ENTRY POINT
         # ──────────────────────────────────────────────────────────────
@@ -127,12 +146,18 @@
             check_rust ? false,
             check_docker ? false,
             check_python ? false,
+            check_javascript ? false,
 
             enableXtask ? false,
 
             python ? {
               enableBlack = true;
               enableFlake8 = true;
+            },
+
+            javascript ? {
+              enableBiome = true;
+              enableTsc = false;
             },
           }:
           let
@@ -152,12 +177,22 @@
               else
                 null;
 
+            javascriptCheck =
+              if check_javascript then
+                self.lib.mkJavascriptCheck {
+                  inherit system extraExcludes;
+                  inherit (javascript) enableBiome enableTsc;
+                }
+              else
+                null;
+
             modules = [
               base
             ]
             ++ lib.optionals (rust != null) [ rust ]
             ++ lib.optionals (docker != null) [ docker ]
-            ++ lib.optionals (pythonCheck != null) [ pythonCheck ];
+            ++ lib.optionals (pythonCheck != null) [ pythonCheck ]
+            ++ lib.optionals (javascriptCheck != null) [ javascriptCheck ];
 
             merged = mergeModules modules;
 
