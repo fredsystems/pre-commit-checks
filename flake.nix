@@ -221,6 +221,7 @@
           check_rust = false;
           check_docker = false;
           check_python = false;
+          check_javascript = false;
         };
       });
 

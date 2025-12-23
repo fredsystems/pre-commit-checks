@@ -17,7 +17,6 @@ let
         files = "\\.(js|jsx|ts|tsx)$";
         args = [
           "check"
-          "--apply=false"
         ];
       };
     }
