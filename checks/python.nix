@@ -20,6 +20,11 @@ let
 
     flake8 = {
       enable = enableFlake8;
+
+      # This is the important part
+      args = [
+        "--ignore=E501"
+      ];
     };
   };
 in
