@@ -1,5 +1,8 @@
 {
   extraExcludes ? [ ],
+  enableBlack ? true,
+  enableFlake8 ? true,
+  ...
 }:
 
 let
@@ -11,8 +14,13 @@ let
   excludes = baseExcludes ++ extraExcludes;
 
   hooks = {
-    black.enable = true;
-    flake8.enable = true;
+    black = {
+      enable = enableBlack;
+    };
+
+    flake8 = {
+      enable = enableFlake8;
+    };
   };
 in
 
