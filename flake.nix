@@ -75,6 +75,7 @@
             system,
             extraExcludes ? [ ],
             enableXtask ? false,
+            extraLibPathPkgs ? [ ],
           }:
           let
             pkgs = import nixpkgs {
