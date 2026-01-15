@@ -142,6 +142,7 @@
             system,
             src,
             extraExcludes ? [ ],
+            extraLibPathPkgs ? [ ],
 
             check_rust ? false,
             check_docker ? false,
@@ -164,7 +165,17 @@
             base = self.lib.mkBaseCheck { inherit system extraExcludes; };
 
             rust =
-              if check_rust then self.lib.mkRustCheck { inherit system extraExcludes enableXtask; } else null;
+              if check_rust then
+                self.lib.mkRustCheck {
+                  inherit
+                    system
+                    extraExcludes
+                    enableXtask
+                    extraLibPathPkgs
+                    ;
+                }
+              else
+                null;
 
             docker = if check_docker then self.lib.mkDockerCheck { inherit system extraExcludes; } else null;
 
