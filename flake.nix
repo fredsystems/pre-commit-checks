@@ -75,6 +75,7 @@
             system,
             extraExcludes ? [ ],
             enableXtask ? false,
+            extraLibPathPkgs ? [ ],
           }:
           let
             pkgs = import nixpkgs {
@@ -144,6 +145,7 @@
             system,
             src,
             extraExcludes ? [ ],
+            extraLibPathPkgs ? [ ],
 
             check_rust ? false,
             check_docker ? false,
@@ -167,7 +169,17 @@
             base = self.lib.mkBaseCheck { inherit system extraExcludes; };
 
             rust =
-              if check_rust then self.lib.mkRustCheck { inherit system extraExcludes enableXtask; } else null;
+              if check_rust then
+                self.lib.mkRustCheck {
+                  inherit
+                    system
+                    extraExcludes
+                    enableXtask
+                    extraLibPathPkgs
+                    ;
+                }
+              else
+                null;
 
             docker = if check_docker then self.lib.mkDockerCheck { inherit system extraExcludes; } else null;
 
@@ -223,7 +235,7 @@
 
           check_rust = false;
           check_docker = false;
-          check_python = false;
+          check_python = true;
           check_javascript = false;
         };
       });
