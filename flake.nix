@@ -121,6 +121,7 @@
             extraExcludes ? [ ],
             enableBiome ? true,
             enableTsc ? false,
+            tsConfig ? "tsconfig.json$",
           }:
           let
             pkgs = import nixpkgs { inherit system; };
@@ -131,6 +132,7 @@
               extraExcludes
               enableBiome
               enableTsc
+              tsConfig
               ;
           };
 
@@ -158,6 +160,7 @@
             javascript ? {
               enableBiome = true;
               enableTsc = false;
+              tsConfig = "tsconfig.json$";
             },
           }:
           let

@@ -3,6 +3,7 @@
   extraExcludes ? [ ],
   enableBiome ? true,
   enableTsc ? false,
+  tsConfig ? "tsconfig.json$",
 }:
 
 let
@@ -28,7 +29,7 @@ let
           "${pkgs.typescript}/lib/node_modules/typescript/bin/tsc"
           "--noEmit"
         ];
-        files = "tsconfig\\.json$";
+        files = tsConfig;
         pass_filenames = false;
       };
     };
