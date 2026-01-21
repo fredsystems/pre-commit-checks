@@ -28,8 +28,10 @@ let
         args = [
           "${pkgs.typescript}/lib/node_modules/typescript/bin/tsc"
           "--noEmit"
+          "-p"
+          tsConfig
         ];
-        files = tsConfig;
+        # files = tsConfig;
         pass_filenames = false;
       };
     };
