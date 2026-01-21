@@ -122,7 +122,7 @@
             extraExcludes ? [ ],
             enableBiome ? true,
             enableTsc ? false,
-            tsConfig ? "tsconfig.json$",
+            tsConfig ? "tsconfig.json",
           }:
           let
             pkgs = import nixpkgs { inherit system; };
@@ -162,7 +162,7 @@
             javascript ? {
               enableBiome = true;
               enableTsc = false;
-              tsConfig = "tsconfig.json$";
+              tsConfig = "tsconfig.json";
             },
           }:
           let
@@ -196,7 +196,7 @@
               if check_javascript then
                 self.lib.mkJavascriptCheck {
                   inherit system extraExcludes;
-                  inherit (javascript) enableBiome enableTsc;
+                  inherit (javascript) enableBiome enableTsc tsConfig;
                 }
               else
                 null;
