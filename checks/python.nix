@@ -23,8 +23,7 @@ let
 
       # This is the important part
       args = [
-        "--ignore=E501"
-        "--ignore=E503"
+        "--ignore=E501,W503"
       ];
     };
   };
