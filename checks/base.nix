@@ -96,7 +96,10 @@ let
 
     check-executables-have-shebangs.enable = true;
     check-shebang-scripts-are-executable.enable = true;
-    check-added-large-files.enable = true;
+    check-added-large-files = {
+      enable = true;
+      args = [ "--maxkb=600" ];
+    };
     check-symlinks.enable = true;
     detect-private-key = {
       enable = true;
