@@ -27,7 +27,7 @@ let
         entry = "${pkgs.nodejs}/bin/node";
         args = [
           "${pkgs.typescript}/lib/node_modules/typescript/bin/tsc"
-          "--noEmit"
+          "--build"
           "-p"
           tsConfig
         ];
