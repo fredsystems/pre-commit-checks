@@ -28,7 +28,6 @@ let
         args = [
           "${pkgs.typescript}/lib/node_modules/typescript/bin/tsc"
           "--build"
-          "-p"
           tsConfig
         ];
         # files = tsConfig;
