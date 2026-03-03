@@ -84,7 +84,12 @@
             };
           in
           import ./checks/rust.nix {
-            inherit pkgs extraExcludes enableXtask;
+            inherit
+              pkgs
+              extraExcludes
+              enableXtask
+              extraLibPathPkgs
+              ;
           };
 
         mkDockerCheck =
