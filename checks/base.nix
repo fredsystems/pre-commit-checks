@@ -149,7 +149,7 @@ let
 
     markdownlint = {
       enable = true;
-      entry = "${pkgs.nodePackages.markdownlint-cli2}/bin/markdownlint-cli2";
+      entry = "${pkgs.markdownlint-cli2}/bin/markdownlint-cli2";
       files = "\\.(md|mdx)$";
 
       args = [

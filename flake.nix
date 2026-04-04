@@ -75,7 +75,6 @@
             system,
             extraExcludes ? [ ],
             enableXtask ? false,
-            extraLibPathPkgs ? [ ],
           }:
           let
             pkgs = import nixpkgs {
@@ -265,7 +264,7 @@
                 codespell
                 typos
                 nixfmt
-                nodePackages.markdownlint-cli2
+                markdownlint-cli2
               ]);
 
             shellHook = ''
