@@ -75,6 +75,7 @@
             system,
             extraExcludes ? [ ],
             enableXtask ? false,
+            xtaskType ? "ci",
             extraLibPathPkgs ? [ ],
           }:
           let
@@ -88,6 +89,7 @@
               pkgs
               extraExcludes
               enableXtask
+              xtaskType
               extraLibPathPkgs
               ;
           };
@@ -159,6 +161,10 @@
 
             enableXtask ? false,
 
+            rust_options ? {
+              xtaskCheck = "ci";
+            },
+
             python ? {
               enableBlack = true;
               enableFlake8 = true;
@@ -182,6 +188,7 @@
                     enableXtask
                     extraLibPathPkgs
                     ;
+                  xtaskType = rust_options.xtaskCheck or "ci";
                 }
               else
                 null;

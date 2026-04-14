@@ -4,6 +4,7 @@
   extraLibPathPkgs ? [ ],
   extraPackages ? [ ],
   enableXtask ? false,
+  xtaskType ? "ci",
 }:
 
 let
@@ -54,7 +55,7 @@ let
       entry = "${rustToolchain}/bin/cargo";
       args = [
         "xtask"
-        "ci"
+        xtaskType
       ];
       pass_filenames = false;
     };
