@@ -239,18 +239,48 @@
 
       ##############################################################################
       ## CHECKS FOR *THIS* REPO
+      ##
+      ## These double as a "does the exported hook suite still build?" gate.
+      ## Every variant a consumer can request via `lib.mkCheck` is instantiated
+      ## here against this repo's own source, so CI (linux + darwin) proves that
+      ## a PR will not break the hook suite for downstream consumers: every hook
+      ## binary must resolve and the git-hooks run derivation must build.
       ##############################################################################
-      checks = nixpkgs.lib.genAttrs systems (system: {
-        pre-commit = self.lib.mkCheck {
-          inherit system;
-          src = ./.;
+      checks = nixpkgs.lib.genAttrs systems (
+        system:
+        let
+          mk =
+            args:
+            self.lib.mkCheck (
+              {
+                inherit system;
+                src = ./.;
+              }
+              // args
+            );
+        in
+        {
+          # Back-compat: the original python variant.
+          pre-commit = mk { check_python = true; };
 
-          check_rust = false;
-          check_docker = false;
-          check_python = true;
-          check_javascript = false;
-        };
-      });
+          # Base hooks only (no language bundles).
+          suite-base = mk { };
+
+          # Each language bundle layered on top of the base.
+          suite-python = mk { check_python = true; };
+          suite-rust = mk { check_rust = true; };
+          suite-docker = mk { check_docker = true; };
+          suite-javascript = mk { check_javascript = true; };
+
+          # Everything at once: the maximal hook set a consumer could enable.
+          suite-all = mk {
+            check_rust = true;
+            check_docker = true;
+            check_python = true;
+            check_javascript = true;
+          };
+        }
+      );
 
       ##############################################################################
       ## DEV SHELL FOR THIS REPO
