@@ -74,6 +74,13 @@ let
       default: true
       MD013: false
       MD033: false
+      # MD060 ("table-column-style") only recognizes three fixed padding
+      # conventions (aligned/compact/tight) and *always* enforces one of
+      # them, even with `style: any` (the default) -- it just reports
+      # whichever style is the closest match. There is no config value that
+      # means "don't check table width at all", so the rule must be
+      # disabled outright to allow ragged/hand-edited table widths.
+      MD060: false
     '';
   };
 
@@ -143,7 +150,23 @@ let
       pass_filenames = true;
     };
 
-    prettier.enable = true;
+    prettier = {
+      enable = true;
+      # Prettier has no config option to leave table formatting alone (it's
+      # a long-standing, still-open upstream feature request) -- it always
+      # re-pads GFM tables to its "aligned" style on `--write`, silently
+      # rewriting files. In a CI-only setup (no local pre-commit hook)
+      # contributors don't see that diff except by reading CI logs, so it
+      # looks like an opaque failure for something markdownlint (MD060,
+      # disabled above) no longer cares about.
+      #
+      # Markdown is excluded here entirely rather than just tables: the
+      # `markdownlint` hook below is check-only (no `--fix`) and already
+      # enforces the same style concerns (emphasis style, bullet markers,
+      # blank lines, ...) via `default: true`, surfacing them as a named,
+      # actionable rule failure instead of a silent rewrite.
+      excludes = [ "\\.mdx?$" ];
+    };
     check-toml.enable = true;
     check-vcs-permalinks.enable = true;
 
