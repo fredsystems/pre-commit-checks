@@ -177,6 +177,26 @@
             },
           }:
           let
+            pkgs = import nixpkgs { inherit system; };
+
+            # nixpkgs' `pre-commit` derivation runs its own upstream pytest
+            # suite in `checkPhase`. `test_output_isatty` forks a pty-backed
+            # subprocess and is racy under the sandboxed, multi-threaded
+            # Darwin builders (see the "DeprecationWarning: ... use of
+            # fork() may lead to deadlocks" note in the test output) -- it
+            # fails intermittently on macOS runners even though the built
+            # `pre-commit` binary itself works fine. Skip just that test
+            # rather than the whole suite so a real regression elsewhere
+            # still fails CI. Safe to drop once upstream nixpkgs disables or
+            # fixes it: pkgs/by-name/pr/pre-commit/package.nix.
+            preCommitPackage =
+              if pkgs.stdenv.hostPlatform.isDarwin then
+                pkgs.pre-commit.overrideAttrs (old: {
+                  disabledTests = (old.disabledTests or [ ]) ++ [ "test_output_isatty" ];
+                })
+              else
+                pkgs.pre-commit;
+
             base = self.lib.mkBaseCheck { inherit system extraExcludes; };
 
             rust =
@@ -227,6 +247,7 @@
               inherit src;
               inherit (merged) hooks;
               inherit (merged) excludes;
+              package = preCommitPackage;
             };
           in
           run
