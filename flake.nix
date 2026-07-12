@@ -192,7 +192,10 @@
             preCommitPackage =
               if pkgs.stdenv.hostPlatform.isDarwin then
                 pkgs.pre-commit.overrideAttrs (old: {
-                  disabledTests = (old.disabledTests or [ ]) ++ [ "test_output_isatty" ];
+                  disabledTests = (old.disabledTests or [ ]) ++ [
+                    "test_output_isatty"
+                    "test_healthy_venv_creator" # ensurepip broken on aarch64-darwin python3.14,
+                  ];
                 })
               else
                 pkgs.pre-commit;
