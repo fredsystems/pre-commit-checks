@@ -192,10 +192,27 @@
             preCommitPackage =
               if pkgs.stdenv.hostPlatform.isDarwin then
                 pkgs.pre-commit.overrideAttrs (old: {
-                  disabledTests = (old.disabledTests or [ ]) ++ [
-                    "test_output_isatty"
-                    "test_healthy_venv_creator" # ensurepip broken on aarch64-darwin python3.14,
-                  ];
+                  disabledTests = (old.disabledTests or [ ]) ++ [ "test_output_isatty" ];
+
+                  # nixpkgs' pre-commit `preCheck` unconditionally creates a throwaway
+                  # venv via `python -m venv --system-site-packages venv` to run the
+                  # whole test suite in. On aarch64-darwin python3-3.14.6, `ensurepip`
+                  # itself is broken (upstream CPython 3.14 regression, see e.g.
+                  # https://github.com/orgs/Homebrew/discussions/6582), so venv
+                  # creation fails in `preCheck` before a single test runs.
+                  # `disabledTests` cannot fix this -- it only filters pytest's test
+                  # selection, not the harness setup. Skip pip bootstrapping instead;
+                  # `--system-site-packages` already gives the venv everything it
+                  # needs, and nothing in the suite pip-installs into this venv.
+                  # Safe to drop once nixpkgs picks up an ensurepip fix for
+                  # aarch64-darwin python 3.14.
+                  preCheck =
+                    builtins.replaceStrings
+                      [
+                        "python -m venv --system-site-packages venv"
+                      ]
+                      [ "python -m venv --without-pip --system-site-packages venv" ]
+                      old.preCheck;
                 })
               else
                 pkgs.pre-commit;
