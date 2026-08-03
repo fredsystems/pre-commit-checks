@@ -26,7 +26,7 @@ let
         enable = true;
         entry = "${pkgs.nodejs}/bin/node";
         args = [
-          "${pkgs.typescript}/lib/node_modules/typescript/bin/tsc"
+          "${pkgs.typescript-go}/lib/node_modules/typescript/bin/tsc"
           "--build"
           tsConfig
         ];
