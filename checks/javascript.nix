@@ -24,9 +24,8 @@ let
     // pkgs.lib.optionalAttrs enableTsc {
       tsc = {
         enable = true;
-        entry = "${pkgs.nodejs}/bin/node";
+        entry = "${pkgs.typescript-go}/bin/tsc";
         args = [
-          "${pkgs.typescript-go}/bin/tsc"
           "--build"
           tsConfig
         ];
@@ -39,11 +38,11 @@ in
   inherit hooks excludes;
 
   enabledPackages =
-    (pkgs.lib.optional enableBiome pkgs.biome) ++ (pkgs.lib.optional enableTsc pkgs.typescript);
+    (pkgs.lib.optional enableBiome pkgs.biome) ++ (pkgs.lib.optional enableTsc pkgs.typescript-go);
 
   passthru = {
     devPackages =
-      (pkgs.lib.optional enableBiome pkgs.biome) ++ (pkgs.lib.optional enableTsc pkgs.typescript);
+      (pkgs.lib.optional enableBiome pkgs.biome) ++ (pkgs.lib.optional enableTsc pkgs.typescript-go);
     libPath = [ ];
   };
 }
