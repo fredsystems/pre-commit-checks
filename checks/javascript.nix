@@ -24,7 +24,7 @@ let
     // pkgs.lib.optionalAttrs enableTsc {
       tsc = {
         enable = true;
-        #entry = "${pkgs.nodejs}/bin/node";
+        entry = "${pkgs.nodejs}/bin/node";
         args = [
           "${pkgs.typescript-go}/bin/tsc"
           "--build"
