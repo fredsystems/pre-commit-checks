@@ -224,6 +224,18 @@ let
       files = "^\\.github/workflows/.*\\.ya?ml$";
       pass_filenames = true;
     };
+
+    # Semantic lint for workflows, beyond check-github-workflows' schema
+    # validation: expression and context typos, unknown runner labels, and
+    # shellcheck on every `run:` block (the nixpkgs actionlint is wrapped
+    # with shellcheck). Repos with custom self-hosted runner labels declare
+    # them in .github/actionlint.yaml (`self-hosted-runner.labels`).
+    actionlint = {
+      enable = true;
+      entry = "${pkgs.actionlint}/bin/actionlint";
+      files = "^\\.github/workflows/.*\\.ya?ml$";
+      pass_filenames = true;
+    };
   };
 in
 
