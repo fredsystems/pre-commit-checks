@@ -150,19 +150,26 @@ let
     '';
   };
 
-  # The mkCheck derivation sets PRE_COMMIT_CHECKS_OFFLINE because the Nix
-  # sandbox has no network, so only local file links are checked there.
-  # The sandbox also points SSL_CERT_FILE at a missing file, and lychee
-  # refuses to start without a CA bundle even when offline. GITHUB_TOKEN,
-  # when set, is picked up by lychee to avoid github.com rate limiting.
+  # The Nix sandbox has no network, so only local file links are checked
+  # there. A Nix build is detected either by PRE_COMMIT_CHECKS_OFFLINE
+  # (set by mkCheck) or by NIX_BUILD_TOP without IN_NIX_SHELL: builds set
+  # the former only, while `nix develop` / `nix-shell` set both. The second
+  # form covers repos that call git-hooks' `run` themselves instead of
+  # mkCheck (to add repo-local hooks). The sandbox also points
+  # SSL_CERT_FILE at a missing file, and lychee refuses to start without a
+  # CA bundle even when offline. GITHUB_TOKEN, when set, is picked up by
+  # lychee to avoid github.com rate limiting.
   lycheeWrapper = pkgs.writeShellApplication {
     name = "lychee-wrapper";
     runtimeInputs = [ pkgs.lychee ];
     text = ''
       args=(--config "${lycheeConfig}")
-      if [ -n "''${PRE_COMMIT_CHECKS_OFFLINE:-}" ]; then
+      if [ -n "''${PRE_COMMIT_CHECKS_OFFLINE:-}" ] ||
+        { [ -n "''${NIX_BUILD_TOP:-}" ] && [ -z "''${IN_NIX_SHELL:-}" ]; }; then
         args+=(--offline)
         export SSL_CERT_FILE="${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
+        echo "lychee: running inside a Nix build sandbox (no network)." >&2
+        echo "lychee: only local file links are checked; remote links are NOT checked." >&2
       fi
       exec lychee "''${args[@]}" -- "$@"
     '';
@@ -274,6 +281,9 @@ let
       # One lychee process at a time, so the per-host limits in
       # lycheeConfig are not multiplied by pre-commit's parallel batches.
       require_serial = true;
+      # Show the summary on success too, so a run that skipped remote links
+      # (Nix sandbox) is visible rather than a silent "Passed".
+      verbose = true;
     };
 
     deadnix = {
@@ -340,6 +350,10 @@ in
 
 {
   inherit hooks excludes;
+
+  # The link checker on its own (shared config, same offline handling), for
+  # CI that runs hooks in the Nix sandbox but must check links online.
+  linkCheck = lycheeWrapper;
 
   enabledPackages = [ ];
   passthru = {

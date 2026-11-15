@@ -272,6 +272,18 @@
       };
 
       ##############################################################################
+      ## PACKAGES
+      ##
+      ## link-check: the lychee hook on its own, for consumers whose CI runs
+      ## the hooks inside the Nix sandbox (no network) and so needs a separate
+      ## online link-check step:
+      ##   nix run --inputs-from . <input>#link-check -- <files>
+      ##############################################################################
+      packages = nixpkgs.lib.genAttrs systems (system: {
+        link-check = (self.lib.mkBaseCheck { inherit system; }).linkCheck;
+      });
+
+      ##############################################################################
       ## CHECKS FOR *THIS* REPO
       ##
       ## These double as a "does the exported hook suite still build?" gate.
