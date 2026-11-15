@@ -94,6 +94,12 @@ let
       self-hosted-runner:
         labels:
           - ubuntu-26.04
+      # `uses: $/<path>` (self-repository reference at the running commit,
+      # Actions runner >= 2.336) is valid but unknown to actionlint 1.7.12.
+      paths:
+        .github/workflows/**/*.{yml,yaml}:
+          ignore:
+            - 'specifying action "\$/[^"]*" in invalid format because ref is missing'
     '';
   };
 
