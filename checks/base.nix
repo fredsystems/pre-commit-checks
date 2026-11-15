@@ -2,6 +2,7 @@
   pkgs,
   extraExcludes ? [ ],
   enableLinkCheck ? true,
+  extraActionlintRunnerLabels ? [ ],
 }:
 
 let
@@ -87,13 +88,21 @@ let
 
   # actionlint's built-in runner label list lags GitHub's hosted runners
   # (v1.7.12 does not know ubuntu-26.04), so newer hosted labels are
-  # declared here as if they were self-hosted.
+  # declared here as if they were self-hosted. Repos add the labels of
+  # their own self-hosted runners via extraActionlintRunnerLabels, because
+  # a repo-local .github/actionlint.yaml is not read (see the hook below).
+  actionlintRunnerLabels = [
+    "ubuntu-26.04"
+    "ubuntu-26.04-arm"
+  ]
+  ++ extraActionlintRunnerLabels;
+
   actionlintConfig = pkgs.writeTextFile {
     name = "actionlint.yaml";
     text = ''
       self-hosted-runner:
         labels:
-          - ubuntu-26.04
+      ${pkgs.lib.concatMapStrings (l: "    - ${builtins.toJSON l}\n") actionlintRunnerLabels}
       # `uses: $/<path>` (self-repository reference at the running commit,
       # Actions runner >= 2.336) is valid but unknown to actionlint 1.7.12.
       paths:
@@ -314,8 +323,8 @@ let
     # validation: expression and context typos, unknown runner labels, and
     # shellcheck on every `run:` block (the nixpkgs actionlint is wrapped
     # with shellcheck). The shared config above is passed explicitly, which
-    # means a repo-local .github/actionlint.yaml is NOT read; add extra
-    # runner labels to actionlintConfig instead.
+    # means a repo-local .github/actionlint.yaml is NOT read; repos declare
+    # their self-hosted runner labels with extraActionlintRunnerLabels.
     actionlint = {
       enable = true;
       entry = "${pkgs.actionlint}/bin/actionlint";

@@ -65,11 +65,19 @@
             system,
             extraExcludes ? [ ],
             enableLinkCheck ? true,
+            extraActionlintRunnerLabels ? [ ],
           }:
           let
             pkgs = import nixpkgs { inherit system; };
           in
-          import ./checks/base.nix { inherit pkgs extraExcludes enableLinkCheck; };
+          import ./checks/base.nix {
+            inherit
+              pkgs
+              extraExcludes
+              enableLinkCheck
+              extraActionlintRunnerLabels
+              ;
+          };
 
         mkRustCheck =
           {
@@ -162,6 +170,7 @@
 
             enableXtask ? false,
             enableLinkCheck ? true,
+            extraActionlintRunnerLabels ? [ ],
 
             rust_options ? {
               xtaskCheck = "ci";
@@ -181,7 +190,14 @@
           let
             pkgs = import nixpkgs { inherit system; };
 
-            base = self.lib.mkBaseCheck { inherit system extraExcludes enableLinkCheck; };
+            base = self.lib.mkBaseCheck {
+              inherit
+                system
+                extraExcludes
+                enableLinkCheck
+                extraActionlintRunnerLabels
+                ;
+            };
 
             rust =
               if check_rust then
