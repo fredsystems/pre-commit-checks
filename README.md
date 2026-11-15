@@ -58,6 +58,16 @@ throttling, and excludes for placeholder hosts such as `http://dockerhost:8080`)
   file links are checked there.
 - **Opting out**: pass `enableLinkCheck = false` to `mkCheck`.
 
+### Workflow linting
+
+GitHub Actions workflows are checked with actionlint using a shared config
+(a repo-local `.github/actionlint.yaml` is not read). Repos with self-hosted
+runners declare their labels on `mkCheck`:
+
+```nix
+extraActionlintRunnerLabels = [ "my-self-hosted-label" ];
+```
+
 Example `.lycheeignore`:
 
 ```text
