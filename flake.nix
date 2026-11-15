@@ -179,44 +179,6 @@
           let
             pkgs = import nixpkgs { inherit system; };
 
-            # nixpkgs' `pre-commit` derivation runs its own upstream pytest
-            # suite in `checkPhase`. `test_output_isatty` forks a pty-backed
-            # subprocess and is racy under the sandboxed, multi-threaded
-            # Darwin builders (see the "DeprecationWarning: ... use of
-            # fork() may lead to deadlocks" note in the test output) -- it
-            # fails intermittently on macOS runners even though the built
-            # `pre-commit` binary itself works fine. Skip just that test
-            # rather than the whole suite so a real regression elsewhere
-            # still fails CI. Safe to drop once upstream nixpkgs disables or
-            # fixes it: pkgs/by-name/pr/pre-commit/package.nix.
-            preCommitPackage =
-              if pkgs.stdenv.hostPlatform.isDarwin then
-                pkgs.pre-commit.overrideAttrs (old: {
-                  disabledTests = (old.disabledTests or [ ]) ++ [ "test_output_isatty" ];
-
-                  # nixpkgs' pre-commit `preCheck` unconditionally creates a throwaway
-                  # venv via `python -m venv --system-site-packages venv` to run the
-                  # whole test suite in. On aarch64-darwin python3-3.14.6, `ensurepip`
-                  # itself is broken (upstream CPython 3.14 regression, see e.g.
-                  # https://github.com/orgs/Homebrew/discussions/6582), so venv
-                  # creation fails in `preCheck` before a single test runs.
-                  # `disabledTests` cannot fix this -- it only filters pytest's test
-                  # selection, not the harness setup. Skip pip bootstrapping instead;
-                  # `--system-site-packages` already gives the venv everything it
-                  # needs, and nothing in the suite pip-installs into this venv.
-                  # Safe to drop once nixpkgs picks up an ensurepip fix for
-                  # aarch64-darwin python 3.14.
-                  preCheck =
-                    builtins.replaceStrings
-                      [
-                        "python -m venv --system-site-packages venv"
-                      ]
-                      [ "python -m venv --without-pip --system-site-packages venv" ]
-                      old.preCheck;
-                })
-              else
-                pkgs.pre-commit;
-
             base = self.lib.mkBaseCheck { inherit system extraExcludes; };
 
             rust =
@@ -267,7 +229,7 @@
               inherit src;
               inherit (merged) hooks;
               inherit (merged) excludes;
-              package = preCommitPackage;
+              package = pkgs.pre-commit;
             };
           in
           run
