@@ -129,17 +129,17 @@ let
     '';
   };
 
-  # Inside a Nix build (e.g. `nix flake check`) there is no network, so
-  # only local file links are checked there. The sandbox also points
-  # SSL_CERT_FILE at a missing file, and lychee refuses to start without
-  # a CA bundle even when offline. GITHUB_TOKEN, when set, is picked up
-  # by lychee to avoid github.com rate limiting.
+  # The mkCheck derivation sets PRE_COMMIT_CHECKS_OFFLINE because the Nix
+  # sandbox has no network, so only local file links are checked there.
+  # The sandbox also points SSL_CERT_FILE at a missing file, and lychee
+  # refuses to start without a CA bundle even when offline. GITHUB_TOKEN,
+  # when set, is picked up by lychee to avoid github.com rate limiting.
   lycheeWrapper = pkgs.writeShellApplication {
     name = "lychee-wrapper";
     runtimeInputs = [ pkgs.lychee ];
     text = ''
       args=(--config "${lycheeConfig}")
-      if [ -n "''${NIX_BUILD_TOP:-}" ]; then
+      if [ -n "''${PRE_COMMIT_CHECKS_OFFLINE:-}" ]; then
         args+=(--offline)
         export SSL_CERT_FILE="${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
       fi
@@ -250,6 +250,9 @@ let
       entry = "${lycheeWrapper}/bin/lychee-wrapper";
       files = "\\.(md|mdx)$";
       pass_filenames = true;
+      # One lychee process at a time, so the per-host limits in
+      # lycheeConfig are not multiplied by pre-commit's parallel batches.
+      require_serial = true;
     };
 
     deadnix = {

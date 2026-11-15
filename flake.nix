@@ -227,18 +227,31 @@
 
             merged = mergeModules modules;
 
-            run = git-hooks.lib.${system}.run {
+            hooksRun = git-hooks.lib.${system}.run {
               inherit src;
               inherit (merged) hooks;
               inherit (merged) excludes;
               package = pkgs.pre-commit;
             };
+
+            # The check derivation runs in the network-less Nix sandbox; tell
+            # network-dependent hooks (lychee) explicitly. `nix develop` also
+            # sets NIX_BUILD_TOP, so that cannot be used to detect a build.
+            # overrideAttrs drops the extra attributes git-hooks attaches
+            # (shellHook, enabledPackages, config, ...), so they are taken
+            # from hooksRun and only the derivation itself from the override.
+            run = hooksRun.overrideAttrs (old: {
+              env = (old.env or { }) // {
+                PRE_COMMIT_CHECKS_OFFLINE = "1";
+              };
+            });
           in
-          run
+          hooksRun
+          // run
           // {
             inherit (merged) passthru;
-            shellHook = run.shellHook or "";
-            enabledPackages = run.enabledPackages or [ ];
+            shellHook = hooksRun.shellHook or "";
+            enabledPackages = hooksRun.enabledPackages or [ ];
           };
       };
 
