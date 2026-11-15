@@ -84,6 +84,18 @@ let
     '';
   };
 
+  # actionlint's built-in runner label list lags GitHub's hosted runners
+  # (v1.7.12 does not know ubuntu-26.04), so newer hosted labels are
+  # declared here as if they were self-hosted.
+  actionlintConfig = pkgs.writeTextFile {
+    name = "actionlint.yaml";
+    text = ''
+      self-hosted-runner:
+        labels:
+          - ubuntu-26.04
+    '';
+  };
+
   excludes = baseExcludes ++ extraExcludes;
 
   hooks = {
@@ -228,11 +240,16 @@ let
     # Semantic lint for workflows, beyond check-github-workflows' schema
     # validation: expression and context typos, unknown runner labels, and
     # shellcheck on every `run:` block (the nixpkgs actionlint is wrapped
-    # with shellcheck). Repos with custom self-hosted runner labels declare
-    # them in .github/actionlint.yaml (`self-hosted-runner.labels`).
+    # with shellcheck). The shared config above is passed explicitly, which
+    # means a repo-local .github/actionlint.yaml is NOT read; add extra
+    # runner labels to actionlintConfig instead.
     actionlint = {
       enable = true;
       entry = "${pkgs.actionlint}/bin/actionlint";
+      args = [
+        "-config-file"
+        "${actionlintConfig}"
+      ];
       files = "^\\.github/workflows/.*\\.ya?ml$";
       pass_filenames = true;
     };
