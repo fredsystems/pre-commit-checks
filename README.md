@@ -43,6 +43,32 @@ extraExcludes = [
 
 This allows per‑repo customization without duplicating config.
 
+### Link checking
+
+Markdown files are link-checked with [lychee](https://github.com/lycheeverse/lychee)
+using a shared base config (headers, accepted status codes, retries, per-host
+throttling, and excludes for placeholder hosts such as `http://dockerhost:8080`).
+
+- **Repo-specific exclusions**: add a `.lycheeignore` at the repo root, one
+  regular expression per line. Matching URLs are skipped.
+- **GitHub rate limits**: set `GITHUB_TOKEN` in the environment that runs
+  pre-commit (e.g. `env: GITHUB_TOKEN: ${{ github.token }}` on the CI lint
+  step) so github.com links are checked through the API.
+- **Nix sandbox**: inside `nix flake check` there is no network, so only local
+  file links are checked there.
+- **Opting out**: pass `enableLinkCheck = false` to `mkCheck`.
+
+Example `.lycheeignore`:
+
+```text
+^https://ais\.feed\.sdrmap\.org
+^http://influxdb:8086
+```
+
+Placeholder URLs that are not valid URLs at all (such as
+`<http://dockerhost:port/>`) cannot be excluded; write them as inline code
+instead of links.
+
 ---
 
 ## 📦 Usage (Consumer Repository)

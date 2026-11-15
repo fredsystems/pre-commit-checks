@@ -64,11 +64,12 @@
           {
             system,
             extraExcludes ? [ ],
+            enableLinkCheck ? true,
           }:
           let
             pkgs = import nixpkgs { inherit system; };
           in
-          import ./checks/base.nix { inherit pkgs extraExcludes; };
+          import ./checks/base.nix { inherit pkgs extraExcludes enableLinkCheck; };
 
         mkRustCheck =
           {
@@ -160,6 +161,7 @@
             check_javascript ? false,
 
             enableXtask ? false,
+            enableLinkCheck ? true,
 
             rust_options ? {
               xtaskCheck = "ci";
@@ -179,7 +181,7 @@
           let
             pkgs = import nixpkgs { inherit system; };
 
-            base = self.lib.mkBaseCheck { inherit system extraExcludes; };
+            base = self.lib.mkBaseCheck { inherit system extraExcludes enableLinkCheck; };
 
             rust =
               if check_rust then
