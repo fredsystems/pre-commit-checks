@@ -1,6 +1,7 @@
 {
   pkgs,
   extraExcludes ? [ ],
+  enableLinkCheck ? true,
 }:
 
 let
@@ -93,6 +94,56 @@ let
       self-hosted-runner:
         labels:
           - ubuntu-26.04
+    '';
+  };
+
+  # Shared lychee defaults. Repos add their own URL exclusions in a
+  # `.lycheeignore` at the repo root (one regex per line), which lychee
+  # reads from the working directory on its own.
+  lycheeConfig = pkgs.writeTextFile {
+    name = "lychee.toml";
+    text = ''
+      no_progress = true
+      max_retries = 3
+      retry_wait_time = 2
+      timeout = 20
+      max_concurrency = 16
+      host_concurrency = 4
+
+      # 403 and 429 mean the host answered but refused a bot or rate
+      # limited us; neither means the link is dead.
+      accept = ["200..=206", "403", "429"]
+
+      user_agent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.2 Safari/605.1.15"
+      header = { "accept" = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", "accept-language" = "en-US,en;q=0.9" }
+
+      exclude_all_private = true
+
+      exclude = [
+        # Single-label hostnames (dockerhost, myip, compose service
+        # names, ...) are placeholders, never public URLs.
+        '^https?://[^./:@]+(:[^/]*)?([/?#]|$)',
+        '^https?://([^/]+\.)?(mysite|mydomain)\.',
+        'YOUR[-_]?[A-Z]+',
+      ]
+    '';
+  };
+
+  # The mkCheck derivation sets PRE_COMMIT_CHECKS_OFFLINE because the Nix
+  # sandbox has no network, so only local file links are checked there.
+  # The sandbox also points SSL_CERT_FILE at a missing file, and lychee
+  # refuses to start without a CA bundle even when offline. GITHUB_TOKEN,
+  # when set, is picked up by lychee to avoid github.com rate limiting.
+  lycheeWrapper = pkgs.writeShellApplication {
+    name = "lychee-wrapper";
+    runtimeInputs = [ pkgs.lychee ];
+    text = ''
+      args=(--config "${lycheeConfig}")
+      if [ -n "''${PRE_COMMIT_CHECKS_OFFLINE:-}" ]; then
+        args+=(--offline)
+        export SSL_CERT_FILE="${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
+      fi
+      exec lychee "''${args[@]}" -- "$@"
     '';
   };
 
@@ -192,6 +243,16 @@ let
         "${markdownlintConfig}"
         "--no-glob"
       ];
+    };
+
+    lychee = {
+      enable = enableLinkCheck;
+      entry = "${lycheeWrapper}/bin/lychee-wrapper";
+      files = "\\.(md|mdx)$";
+      pass_filenames = true;
+      # One lychee process at a time, so the per-host limits in
+      # lycheeConfig are not multiplied by pre-commit's parallel batches.
+      require_serial = true;
     };
 
     deadnix = {
