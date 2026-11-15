@@ -120,6 +120,12 @@ let
       # limited us; neither means the link is dead.
       accept = ["200..=206", "403", "429"]
 
+      # A timeout (after retries) says the host or our network was slow, not
+      # that the link is dead; dead links fail with DNS, connection or HTTP
+      # errors, which still fail the check. Failing on timeouts makes the
+      # hook flaky (e.g. www.gnu.org stalls from some networks).
+      accept_timeouts = true
+
       user_agent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.2 Safari/605.1.15"
       header = { "accept" = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", "accept-language" = "en-US,en;q=0.9" }
 
